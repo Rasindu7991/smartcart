@@ -32,6 +32,7 @@ async function analyzeImage(base64Image, apiKey) {
         features: [
           { type: 'LABEL_DETECTION', maxResults: 15 },
           { type: 'OBJECT_LOCALIZATION', maxResults: 10 },
+          { type: 'DOCUMENT_TEXT_DETECTION', maxResults: 5 },
           { type: 'TEXT_DETECTION', maxResults: 5 },
         ],
       },
@@ -86,8 +87,10 @@ async function analyzeImage(base64Image, apiKey) {
     if (o.score > 0.5) labels.add(o.name.toLowerCase());
   });
 
-  // Extract text (product names from text on packaging)
-  const textBlock = result?.textAnnotations?.[0]?.description || '';
+  // Extract text (prefer document text, then fall back to standard OCR output)
+  const textBlock = result?.fullTextAnnotation?.text
+    || result?.textAnnotations?.[0]?.description
+    || '';
   if (textBlock) {
     // Split and filter short/generic words
     textBlock
@@ -125,6 +128,8 @@ function extractPriceCandidates(textBlock) {
   const candidates = [];
   const seen = new Map();
   const lines = String(textBlock || '')
+    .replace(/\r/g, '\n')
+    .replace(/[|]/g, ' ')
     .split(/\n+/)
     .map(line => line.trim())
     .filter(Boolean);
@@ -140,31 +145,47 @@ function extractPriceCandidates(textBlock) {
 
   const amountPattern = /(?:LKR|Rs\.?|Rs|₹|රු\.?|රු)?\s*([0-9]{1,3}(?:,[0-9]{3})*(?:\.[0-9]{1,2})?|[0-9]+(?:\.[0-9]{1,2})?)/gi;
   const labelPattern = /\b(MRP|MARKED\s*PRICE|SELLING\s*PRICE|PRICE|AMOUNT)\b/i;
+  const currencyPattern = /(?:LKR|RS\.?|RS|₹|RUPEES?|RU\.?|රු\.?|රු)/i;
 
   // 1) Explicit label + amount patterns, even when OCR splits them across lines.
   const joined = lines.join(' ');
-  for (const match of joined.matchAll(/\b(MRP|MARKED\s*PRICE|SELLING\s*PRICE|PRICE|AMOUNT)\b[^0-9]{0,12}(?:LKR|Rs\.?|Rs|₹|රු\.?|රු)?\s*([0-9]{1,3}(?:,[0-9]{3})*(?:\.[0-9]{1,2})?|[0-9]+(?:\.[0-9]{1,2})?)/gi)) {
+  for (const match of joined.matchAll(/\b(MRP|MARKED\s*PRICE|SELLING\s*PRICE|PRICE|AMOUNT)\b[\s:.-]{0,10}(?:LKR|Rs\.?|Rs|₹|රු\.?|රු)?[\s:.-]{0,10}([0-9]{1,3}(?:,[0-9]{3})*(?:\.[0-9]{1,2})?|[0-9]+(?:\.[0-9]{1,2})?)/gi)) {
     pushValue(parseFloat(match[2].replace(/,/g, '')), 100);
   }
 
+  // 1b) Handle currency first, then amount, or amount then currency.
+  for (const match of joined.matchAll(/(?:LKR|Rs\.?|Rs|₹|රු\.?|රු)[\s:.-]{0,8}([0-9]{1,3}(?:,[0-9]{3})*(?:\.[0-9]{1,2})?|[0-9]+(?:\.[0-9]{1,2})?)/gi)) {
+    pushValue(parseFloat(match[1].replace(/,/g, '')), 95);
+  }
+  for (const match of joined.matchAll(/([0-9]{1,3}(?:,[0-9]{3})*(?:\.[0-9]{1,2})?|[0-9]+(?:\.[0-9]{1,2})?)[\s:.-]{0,8}(?:LKR|Rs\.?|Rs|₹|රු\.?|රු)/gi)) {
+    pushValue(parseFloat(match[1].replace(/,/g, '')), 95);
+  }
+
   // 2) Currency-marked amounts on each OCR line.
-  for (const line of lines) {
-    const hasCurrencyWord = /\b(LKR|RS\.?|RUPEES?|RU\.?)\b|රු/gi.test(line);
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    const hasCurrencyWord = currencyPattern.test(line);
     const matches = [...line.matchAll(amountPattern)];
     for (const match of matches) {
       const raw = match[1];
       const value = parseFloat(raw.replace(/,/g, ''));
-      if (hasCurrencyWord || /[₹රු]|(?:LKR|RS|RUPEE)/i.test(line) || value >= 10) {
+      if (hasCurrencyWord || currencyPattern.test(line) || value >= 10) {
         pushValue(value, /\b(MRP|PRICE|AMOUNT)\b/i.test(line) ? 90 : 50);
       }
     }
 
     // 3) If a label line has no amount, inspect the next line too.
     if (labelPattern.test(line)) {
-      const nextLine = lines[lines.indexOf(line) + 1] || '';
+      const nextLine = lines[i + 1] || '';
       for (const match of nextLine.matchAll(amountPattern)) {
         const value = parseFloat(match[1].replace(/,/g, ''));
         if (value >= 10) pushValue(value, 95);
+      }
+
+      // Also inspect the label line plus next line as a single string.
+      const pair = `${line} ${nextLine}`;
+      for (const match of pair.matchAll(/\b(MRP|MARKED\s*PRICE|SELLING\s*PRICE|PRICE|AMOUNT)\b[\s:.-]{0,10}(?:LKR|Rs\.?|Rs|₹|රු\.?|රු)?[\s:.-]{0,10}([0-9]{1,3}(?:,[0-9]{3})*(?:\.[0-9]{1,2})?|[0-9]+(?:\.[0-9]{1,2})?)/gi)) {
+        pushValue(parseFloat(match[2].replace(/,/g, '')), 100);
       }
     }
   }
