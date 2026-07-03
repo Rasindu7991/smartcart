@@ -1,0 +1,22 @@
+{
+  "name": "smartcart",
+  "version": "1.0.0",
+  "description": "Smart Grocery Management PWA with AI image recognition and barcode scanning",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "nodemon server.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^4.18.2",
+    "node-fetch": "^2.7.0",
+    "uuid": "^9.0.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.2"
+  },
+  "keywords": ["grocery", "pwa", "shopping", "budget"],
+  "author": "SmartCart",
+  "license": "MIT"
+}

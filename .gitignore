@@ -1,0 +1,22 @@
+# Dependency directories
+node_modules/
+
+# Local databases
+smartcart_db.json
+smartcart.db
+smartcart.db-journal
+smartcart.db-wal
+smartcart.db-shm
+
+# Log files
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Environment files
+.env
+.env.local
+
+# OS files
+.DS_Store
+Thumbs.db
