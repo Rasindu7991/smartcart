@@ -55,8 +55,19 @@ const SettingsView = {
                 <div class="settings-row-sub">Display currency</div>
               </div>
               <select id="currency-select" class="form-select" style="width:120px;">
-                ${['USD','EUR','GBP','INR','AUD','CAD','JPY','SGD','AED'].map(c =>
-                  `<option value="${c}" ${s.currency === c ? 'selected' : ''}>${c}</option>`
+                ${[
+                  { code: 'LKR', label: 'LKR - Sri Lankan Rupee' },
+                  { code: 'USD', label: 'USD - US Dollar' },
+                  { code: 'EUR', label: 'EUR - Euro' },
+                  { code: 'GBP', label: 'GBP - British Pound' },
+                  { code: 'INR', label: 'INR - Indian Rupee' },
+                  { code: 'AUD', label: 'AUD - Australian Dollar' },
+                  { code: 'CAD', label: 'CAD - Canadian Dollar' },
+                  { code: 'JPY', label: 'JPY - Japanese Yen' },
+                  { code: 'SGD', label: 'SGD - Singapore Dollar' },
+                  { code: 'AED', label: 'AED - UAE Dirham' },
+                ].map(c =>
+                  `<option value="${c.code}" ${s.currency === c.code ? 'selected' : ''}>${c.label}</option>`
                 ).join('')}
               </select>
             </div>

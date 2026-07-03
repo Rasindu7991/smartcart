@@ -6,7 +6,7 @@ const Store = {
   _state: {
     activeList:   null,   // Currently selected list (for shopping mode)
     currentRoute: 'dashboard',
-    currency:     'USD',
+    currency:     'LKR',
     monthlyLimit: 300,
   },
 
@@ -27,7 +27,7 @@ const Store = {
 
   // Currency formatter
   fmt(amount) {
-    const cur = Store._state.currency || 'USD';
+    const cur = Store._state.currency || 'LKR';
     try {
       return new Intl.NumberFormat('en-US', {
         style: 'currency', currency: cur, minimumFractionDigits: 2

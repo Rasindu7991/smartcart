@@ -11,7 +11,7 @@ const defaultState = {
   purchases: [],
   budget_settings: {
     monthly_limit: 300,
-    currency: 'USD',
+    currency: 'LKR',
     google_vision_api_key: ''
   },
   category_budgets: [

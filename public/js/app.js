@@ -68,7 +68,7 @@ const App = {
     // Load budget settings for currency etc.
     try {
       const budget = await Api.getBudget();
-      Store.set('currency', budget.settings?.currency || 'USD');
+      Store.set('currency', budget.settings?.currency || 'LKR');
       Store.set('monthlyLimit', budget.settings?.monthly_limit || 300);
     } catch (e) {
       // silently ignore on first load
