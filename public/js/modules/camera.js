@@ -56,13 +56,27 @@ const Camera = {
     const video   = document.getElementById('camera-video');
     const resultEl = document.getElementById('camera-result');
 
-    // Snapshot
-    const canvas  = document.createElement('canvas');
-    canvas.width  = video.videoWidth  || 640;
-    canvas.height = video.videoHeight || 480;
-    canvas.getContext('2d').drawImage(video, 0, 0);
+    // Snapshot scaling (limit resolution for faster upload and to prevent socket timeouts)
+    const maxDim = 640;
+    let w = video.videoWidth || 640;
+    let h = video.videoHeight || 480;
 
-    const base64 = canvas.toDataURL('image/jpeg', 0.85).split(',')[1];
+    if (w > maxDim || h > maxDim) {
+      if (w > h) {
+        h = Math.round((h * maxDim) / w);
+        w = maxDim;
+      } else {
+        w = Math.round((w * maxDim) / h);
+        h = maxDim;
+      }
+    }
+
+    const canvas  = document.createElement('canvas');
+    canvas.width  = w;
+    canvas.height = h;
+    canvas.getContext('2d').drawImage(video, 0, 0, w, h);
+
+    const base64 = canvas.toDataURL('image/jpeg', 0.75).split(',')[1];
 
     resultEl.innerHTML = `
       <div style="text-align:center;color:#fff;padding:12px;">
