@@ -1,73 +1,69 @@
-# SmartCart Deployment Guide (Render & Railway)
+# SmartCart Deployment Guide: Railway & Vercel
 
-Since SmartCart uses a lightweight file-based database (`smartcart_db.json`), you should deploy it to a platform that supports **persistent disks** so your data is not lost when the server restarts.
-
-Below are the step-by-step instructions to deploy to **Render** or **Railway**.
+This guide explains how to deploy your SmartCart repository ([https://github.com/Rasindu7991/smartcart](https://github.com/Rasindu7991/smartcart)) to **Railway** (recommended for persistence) and **Vercel** (serverless).
 
 ---
 
-## 1. Push Your Code to GitHub
-Before deploying, you need to push your local code to a GitHub repository.
+## 🚂 Option 1: Deploying on Railway (Recommended)
+Railway is the best fit for the current codebase because it supports **Persistent Volumes** (disks). This prevents your database (`smartcart_db.json`) from resetting when the server restarts or rebuilds.
 
-1. In your terminal, go to the project directory:
-   ```bash
-   cd C:\Users\ABC\.gemini\antigravity\scratch\smartcart
-   ```
-2. Initialize Git and commit your files:
-   ```bash
-   git init
-   git add .
-   git commit -m "Initial commit of SmartCart PWA"
-   ```
-3. Create a new repository on [GitHub](https://github.com/) (keep it private if you want to protect your Vision API key).
-4. Link your local project to GitHub and push:
-   ```bash
-   git remote add origin <your-github-repo-url>
-   git branch -M main
-   git push -u origin main
-   ```
+### Step-by-Step Instructions:
 
----
+1. **Log in to Railway**:
+   - Go to [Railway.app](https://railway.app/) and sign in with your GitHub account.
 
-## 2. Deploying on Render (Free Tier Available)
+2. **Create a New Project**:
+   - Click **New Project** in the top right.
+   - Select **Deploy from GitHub repo**.
+   - Choose your `smartcart` repository.
 
-Render is great because it has a generous free tier and supports persistent disks on their Web Services.
+3. **Configure Volume Storage (Crucial for saving data)**:
+   - Once the deployment canvas loads, click on your `smartcart` service block.
+   - Go to the **Settings** tab.
+   - Scroll down to the **Volumes** section and click **Add Volume**.
+   - Set the **Mount Path** to: `/app/data`
+   - Save the volume.
 
-1. Sign up/Login to [Render](https://render.com/).
-2. Click **New +** and select **Web Service**.
-3. Connect your GitHub account and select your `smartcart` repository.
-4. Set the following configurations:
-   * **Name**: `smartcart`
-   * **Environment**: `Node`
-   * **Region**: Choose the closest one to you.
-   * **Branch**: `main`
-   * **Build Command**: `npm install`
-   * **Start Command**: `npm start`
-5. **Configure Persistent Disk (Crucial for data survival)**:
-   * Scroll down to the **Advanced** section or go to the **Disks** tab in the sidebar after creation.
-   * Click **Add Disk**.
-   * **Name**: `db-disk`
-   * **Mount Path**: `/opt/render/project/src/data` (We will configure the app to read/write here).
-   * **Size**: `1 GB` (More than enough for thousands of grocery lists).
-6. **Environment Variables**:
-   * Add `PORT` = `3000`
-   * Add `DB_DIR` = `/opt/render/project/src/data`
-7. Click **Deploy Web Service**.
+4. **Set Environment Variables**:
+   - Switch to the **Variables** tab on the same service page.
+   - Add a new variable:
+     - **Name**: `DB_DIR`
+     - **Value**: `/app/data`
+   - Add another variable:
+     - **Name**: `PORT`
+     - **Value**: `3000`
+   - Click **Save**.
+
+5. **Expose a Public URL**:
+   - Go to the **Settings** tab again.
+   - Under **Networking**, click **Generate Domain** (or set a custom domain).
+   - This will give you a public `https://...` link.
+
+6. **Test Your Deployment**:
+   - Click the generated URL. The app is now live, secure with HTTPS, and the camera/barcode scanner will work natively on your phone. All data will persist on your Railway volume!
 
 ---
 
-## 3. Deploying on Railway (Easiest Setup)
+## ⚡ Option 2: Deploying on Vercel (Serverless)
+Vercel is extremely fast and 100% free, but it runs on **Serverless Functions**. Because of this, the local filesystem is **read-only and temporary**—meaning any lists you create or items you check off will be deleted every time Vercel puts the server to sleep (which happens automatically after a few minutes of inactivity).
 
-Railway has an extremely fast deployment process.
+If you want to use Vercel, you have two options:
 
-1. Sign up/Login to [Railway](https://railway.app/).
-2. Click **New Project** > **Deploy from GitHub repo**.
-3. Select your `smartcart` repository.
-4. Once the deployment starts, click on the service block in the canvas and go to **Settings**.
-5. **Add a Volume (Crucial)**:
-   * Under **Volumes**, click **Add Volume**.
-   * Set the **Mount Path** to `/app/data`.
-6. **Add Environment Variables**:
-   * Go to **Variables** tab.
-   * Add `DB_DIR` = `/app/data`
-7. Railway will automatically rebuild and your data will be permanently saved!
+### Path A: Use Vercel for testing (Data resets periodically)
+If you just want a quick preview link to show others:
+1. Go to [Vercel.com](https://vercel.com/) and sign in.
+2. Click **Add New...** > **Project**.
+3. Select your `smartcart` repository from GitHub.
+4. Leave all settings at default (Vercel automatically detects it's a Node app) and click **Deploy**.
+5. Once complete, your site is live! (But remember, data will reset when the server restarts).
+
+### Path B: Connect to a Free Cloud Database (Production Ready)
+To keep your data permanent on Vercel, you need to connect the app to a free external cloud database instead of saving to a local JSON file. 
+
+1. **Get a free database**:
+   - Create a free account at [Supabase](https://supabase.com/) or [Neon PostgreSQL](https://neon.tech/).
+   - Copy your database connection string URL.
+2. **Update the code**:
+   - Replace the local `database.js` file functions with database queries pointing to Neon or Supabase (using the `pg` or `@supabase/supabase-js` library).
+3. **Set Environment Variables in Vercel**:
+   - Add your connection string URL as an environment variable in your Vercel Dashboard under **Settings > Environment Variables**.

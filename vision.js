@@ -1,4 +1,4 @@
-const fetch = require('node-fetch');
+const fetchImpl = typeof fetch === 'function' ? fetch.bind(globalThis) : require('node-fetch');
 
 /**
  * Analyzes an image using Google Cloud Vision API (Label Detection).
@@ -20,11 +20,12 @@ async function analyzeImage(base64Image, apiKey) {
 
   // ── Real Vision API call ──────────────────────────────────────────────────
   const endpoint = `https://vision.googleapis.com/v1/images:annotate?key=${apiKey}`;
+  const imageContent = normalizeBase64Image(base64Image);
 
   const requestBody = {
     requests: [
       {
-        image: { content: base64Image },
+        image: { content: imageContent },
         features: [
           { type: 'LABEL_DETECTION', maxResults: 15 },
           { type: 'OBJECT_LOCALIZATION', maxResults: 10 },
@@ -34,18 +35,40 @@ async function analyzeImage(base64Image, apiKey) {
     ],
   };
 
-  const response = await fetch(endpoint, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(requestBody),
-  });
+  let response;
+  let lastError;
+  for (let attempt = 1; attempt <= 2; attempt++) {
+    try {
+      response = await fetchImpl(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(requestBody),
+      });
+      break;
+    } catch (err) {
+      lastError = err;
+      if (attempt === 2 || !isRetryableFetchError(err)) {
+        throw err;
+      }
+    }
+  }
+
+  if (!response) {
+    throw lastError;
+  }
 
   if (!response.ok) {
     const err = await response.text();
     throw new Error(`Vision API error ${response.status}: ${err}`);
   }
 
-  const data = await response.json();
+  const bodyText = await response.text();
+  let data;
+  try {
+    data = JSON.parse(bodyText);
+  } catch (err) {
+    throw new Error(`Vision API returned invalid JSON: ${bodyText.slice(0, 200)}`);
+  }
   const result = data.responses?.[0];
 
   const labels = new Set();
@@ -72,6 +95,15 @@ async function analyzeImage(base64Image, apiKey) {
   }
 
   return { demo: false, labels: [...labels] };
+}
+
+function normalizeBase64Image(base64Image) {
+  return String(base64Image || '').replace(/^data:[^;]+;base64,/, '').trim();
+}
+
+function isRetryableFetchError(err) {
+  const message = String(err?.message || err);
+  return /Premature close|socket hang up|ECONNRESET|EPIPE|fetch failed/i.test(message);
 }
 
 /**
