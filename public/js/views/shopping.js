@@ -201,17 +201,24 @@ const ShoppingView = {
   },
 
   async _onCameraMatch(matchedItems) {
-    if (!matchedItems?.length) { UI.toast('No items matched', 'warning'); return; }
-    for (const item of matchedItems) {
+    const payload = Array.isArray(matchedItems) ? { items: matchedItems, actualPrice: null, useEstimate: true } : (matchedItems || {});
+    const selectedItems = payload.items || [];
+    if (!selectedItems.length) { UI.toast('No items matched', 'warning'); return; }
+
+    for (const item of selectedItems) {
       const listItem = ShoppingView._items.find(i => i.id === item.id);
       if (listItem && !listItem.checked) {
-        await Api.updateItem(item.id, { checked: 1, actual_price: listItem.estimated_price });
+        const finalPrice = payload.useEstimate
+          ? (listItem.estimated_price || 0)
+          : (Number.isFinite(payload.actualPrice) ? payload.actualPrice : (listItem.estimated_price || 0));
+
+        await Api.updateItem(item.id, { checked: 1, actual_price: finalPrice });
         listItem.checked      = true;
-        listItem.actual_price = listItem.estimated_price;
-        ShoppingView._runningTotal += (listItem.estimated_price || 0) * listItem.quantity;
+        listItem.actual_price = finalPrice;
+        ShoppingView._runningTotal += finalPrice * listItem.quantity;
       }
     }
-    UI.toast(`${matchedItems.length} item(s) marked as collected`, 'success');
+    UI.toast(`${selectedItems.length} item(s) marked as collected`, 'success');
     ShoppingView._rerender();
   },
 

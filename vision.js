@@ -2,12 +2,12 @@ const fetchImpl = typeof fetch === 'function' ? fetch.bind(globalThis) : require
 
 /**
  * Analyzes an image using Google Cloud Vision API (Label Detection).
- * Returns an array of label strings (e.g. ["milk", "dairy", "bottle"]).
+ * Returns labels plus an optional OCR price hint.
  * Falls back to a demo mode if no API key is provided.
  *
  * @param {string} base64Image - Base64-encoded image (without data URI prefix)
  * @param {string} apiKey      - Google Cloud Vision API key
- * @returns {Promise<{labels: string[], demo: boolean}>}
+ * @returns {Promise<{labels: string[], demo: boolean, detectedPrice: number|null, priceCandidates: number[], ocrText: string}>}
  */
 async function analyzeImage(base64Image, apiKey) {
   // ── Demo mode (no API key) ────────────────────────────────────────────────
@@ -15,6 +15,9 @@ async function analyzeImage(base64Image, apiKey) {
     return {
       demo: true,
       labels: generateDemoLabels(),
+      detectedPrice: null,
+      priceCandidates: [],
+      ocrText: '',
     };
   }
 
@@ -94,7 +97,15 @@ async function analyzeImage(base64Image, apiKey) {
       .forEach(w => labels.add(w.toLowerCase().replace(/[^a-z]/g, '')));
   }
 
-  return { demo: false, labels: [...labels] };
+  const priceCandidates = extractPriceCandidates(textBlock);
+
+  return {
+    demo: false,
+    labels: [...labels],
+    detectedPrice: priceCandidates[0] ?? null,
+    priceCandidates,
+    ocrText: textBlock,
+  };
 }
 
 function normalizeBase64Image(base64Image) {
@@ -104,6 +115,52 @@ function normalizeBase64Image(base64Image) {
 function isRetryableFetchError(err) {
   const message = String(err?.message || err);
   return /Premature close|socket hang up|ECONNRESET|EPIPE|fetch failed/i.test(message);
+}
+
+/**
+ * Extracts plausible prices from OCR text.
+ * Prefers values with explicit currency markers, then falls back to amount-like tokens.
+ */
+function extractPriceCandidates(textBlock) {
+  const candidates = [];
+  const seen = new Set();
+  const lines = String(textBlock || '')
+    .split(/\n+/)
+    .map(line => line.trim())
+    .filter(Boolean);
+
+  const pushValue = (value) => {
+    if (!Number.isFinite(value) || value <= 0) return;
+    const key = value.toFixed(2);
+    if (seen.has(key)) return;
+    seen.add(key);
+    candidates.push(value);
+  };
+
+  // 1) Currency-marked amounts on each OCR line.
+  for (const line of lines) {
+    const hasCurrencyWord = /\b(LKR|RS\.?|RUPEES?|RU\.?)\b|රු/gi.test(line);
+    const matches = [...line.matchAll(/(?:LKR|Rs\.?|Rs|රු\.?|රු)?\s*([0-9]{1,3}(?:,[0-9]{3})*(?:\.[0-9]{1,2})?|[0-9]+(?:\.[0-9]{1,2})?)/gi)];
+    for (const match of matches) {
+      const raw = match[1];
+      const value = parseFloat(raw.replace(/,/g, ''));
+      if (hasCurrencyWord || /[₹රු]|(?:LKR|RS|RUPEE)/i.test(line) || value >= 10) {
+        pushValue(value);
+      }
+    }
+  }
+
+  // 2) If nothing obvious was found, use standalone amounts from the full text.
+  if (!candidates.length) {
+    const allMatches = String(textBlock || '').match(/\b[0-9]{1,3}(?:,[0-9]{3})*(?:\.[0-9]{1,2})?\b|\b[0-9]+(?:\.[0-9]{1,2})?\b/g) || [];
+    for (const raw of allMatches) {
+      const value = parseFloat(raw.replace(/,/g, ''));
+      // Avoid very small tokens such as weights or counts.
+      if (value >= 10) pushValue(value);
+    }
+  }
+
+  return candidates.slice(0, 3);
 }
 
 /**

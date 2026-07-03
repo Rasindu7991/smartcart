@@ -100,27 +100,64 @@ const Camera = {
 
   _showDemoNotice(result, container) {
     container.innerHTML = `
-      <div style="background:rgba(11,16,37,0.9);border:1px solid rgba(245,158,11,0.4);border-radius:14px;padding:16px;max-width:360px;">
+      <div style="background:rgba(11,16,37,0.94);border:1px solid rgba(245,158,11,0.4);border-radius:16px;padding:16px;max-width:360px;margin:0 auto;backdrop-filter:blur(16px);">
         <p style="color:var(--warning);font-size:0.82rem;margin-bottom:12px;text-align:center;">
           ⚠️ Demo mode — Add your Google Vision API key in Settings for real recognition
         </p>
+        ${Camera._buildPriceHTML(result)}
         ${Camera._buildMatchHTML(result)}
       </div>`;
+    Camera._focusPriceInput();
   },
 
   _showMatches(result, container) {
     container.innerHTML = `
-      <div style="background:rgba(11,16,37,0.9);border:1px solid var(--glass-border);border-radius:14px;padding:16px;max-width:360px;">
+      <div style="background:rgba(11,16,37,0.94);border:1px solid var(--glass-border);border-radius:16px;padding:16px;max-width:360px;margin:0 auto;backdrop-filter:blur(16px);">
         <p style="color:var(--text2);font-size:0.82rem;margin-bottom:12px;text-align:center;">
           🎯 Detected: ${result.labels.join(', ')}
         </p>
+        ${Camera._buildPriceHTML(result)}
         ${Camera._buildMatchHTML(result)}
       </div>`;
+    Camera._focusPriceInput();
+  },
+
+  _buildPriceHTML(result) {
+    const detected = result.detectedPrice;
+    const candidates = result.priceCandidates || [];
+    const hint = detected !== null
+      ? `Price detected from image: ${Store.fmt(detected)}`
+      : 'Enter the actual price manually if it is not visible in the photo.';
+
+    const extra = candidates.length > 1
+      ? `<div style="font-size:0.72rem;color:var(--text3);margin-top:4px;">Other matches: ${candidates.slice(1).map(v => Store.fmt(v)).join(', ')}</div>`
+      : '';
+
+    return `
+      <div style="margin-bottom:14px;padding:12px;border-radius:14px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);">
+        <div style="font-size:0.72rem;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:var(--text3);margin-bottom:8px;">Actual Price</div>
+        <input type="number" id="cam-price-input" class="form-input" step="0.01" min="0"
+          value="${detected !== null ? detected : ''}"
+          placeholder="Enter price" style="text-align:center;font-size:1.15rem;font-weight:800;" />
+        <div style="font-size:0.76rem;color:var(--text3);margin-top:8px;text-align:center;">${hint}</div>
+        ${extra}
+      </div>
+    `;
+  },
+
+  _focusPriceInput() {
+    setTimeout(() => {
+      const input = document.getElementById('cam-price-input');
+      if (input) {
+        input.focus();
+        if (!input.value) input.select();
+      }
+    }, 150);
   },
 
   _buildMatchHTML(result) {
     if (!result.matches?.length) {
-      return `<p style="color:var(--text3);text-align:center;font-size:0.85rem;">No matching items found in your list.</p>`;
+      return `<p style="color:var(--text3);text-align:center;font-size:0.85rem;margin-bottom:12px;">No matching items found in your list.</p>`;
     }
 
     const chips = result.matches.slice(0, 6).map(m => `
@@ -134,7 +171,10 @@ const Camera = {
     return `
       <div style="margin-bottom:12px;text-align:center;">${chips}</div>
       <button class="btn btn-success btn-full" id="cam-confirm-btn" style="font-size:0.9rem;">
-        ✓ Mark Selected as Collected
+        ✓ Add Selected Items
+      </button>
+      <button class="btn btn-ghost btn-full" id="cam-use-estimate-btn" style="font-size:0.85rem;margin-top:10px;">
+        Use estimate instead
       </button>
       <p style="color:var(--text3);font-size:0.75rem;text-align:center;margin-top:8px;">Tap items to deselect</p>
     `;
@@ -158,7 +198,29 @@ const Camera = {
           })
           .map(m => m.item);
 
-        if (Camera._onMatch) Camera._onMatch(selected);
+        const input = document.getElementById('cam-price-input');
+        const actualPrice = parseFloat(input?.value);
+        if (isNaN(actualPrice) || actualPrice < 0) {
+          UI.toast('Enter the actual price or use the estimate option', 'warning');
+          return;
+        }
+
+        if (Camera._onMatch) Camera._onMatch({ items: selected, actualPrice, useEstimate: false });
+        Camera.close();
+      });
+    }
+
+    const estimateBtn = document.getElementById('cam-use-estimate-btn');
+    if (estimateBtn) {
+      estimateBtn.addEventListener('click', () => {
+        const selected = (result.matches || [])
+          .filter(m => {
+            const chip = document.getElementById(`cam-match-${m.item.id}`);
+            return chip && !chip.classList.contains('rejected');
+          })
+          .map(m => m.item);
+
+        if (Camera._onMatch) Camera._onMatch({ items: selected, actualPrice: null, useEstimate: true });
         Camera.close();
       });
     }
