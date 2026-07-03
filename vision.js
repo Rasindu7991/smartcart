@@ -129,23 +129,42 @@ function extractPriceCandidates(textBlock) {
     .map(line => line.trim())
     .filter(Boolean);
 
-  const pushValue = (value) => {
+  const pushValue = (value, score = 0) => {
     if (!Number.isFinite(value) || value <= 0) return;
     const key = value.toFixed(2);
-    if (seen.has(key)) return;
-    seen.add(key);
-    candidates.push(value);
+    const existing = seen.get(key);
+    if (existing !== undefined && existing >= score) return;
+    seen.set(key, score);
+    candidates.push({ value, score });
   };
 
-  // 1) Currency-marked amounts on each OCR line.
+  const amountPattern = /(?:LKR|Rs\.?|Rs|₹|රු\.?|රු)?\s*([0-9]{1,3}(?:,[0-9]{3})*(?:\.[0-9]{1,2})?|[0-9]+(?:\.[0-9]{1,2})?)/gi;
+  const labelPattern = /\b(MRP|MARKED\s*PRICE|SELLING\s*PRICE|PRICE|AMOUNT)\b/i;
+
+  // 1) Explicit label + amount patterns, even when OCR splits them across lines.
+  const joined = lines.join(' ');
+  for (const match of joined.matchAll(/\b(MRP|MARKED\s*PRICE|SELLING\s*PRICE|PRICE|AMOUNT)\b[^0-9]{0,12}(?:LKR|Rs\.?|Rs|₹|රු\.?|රු)?\s*([0-9]{1,3}(?:,[0-9]{3})*(?:\.[0-9]{1,2})?|[0-9]+(?:\.[0-9]{1,2})?)/gi)) {
+    pushValue(parseFloat(match[2].replace(/,/g, '')), 100);
+  }
+
+  // 2) Currency-marked amounts on each OCR line.
   for (const line of lines) {
     const hasCurrencyWord = /\b(LKR|RS\.?|RUPEES?|RU\.?)\b|රු/gi.test(line);
-    const matches = [...line.matchAll(/(?:LKR|Rs\.?|Rs|රු\.?|රු)?\s*([0-9]{1,3}(?:,[0-9]{3})*(?:\.[0-9]{1,2})?|[0-9]+(?:\.[0-9]{1,2})?)/gi)];
+    const matches = [...line.matchAll(amountPattern)];
     for (const match of matches) {
       const raw = match[1];
       const value = parseFloat(raw.replace(/,/g, ''));
       if (hasCurrencyWord || /[₹රු]|(?:LKR|RS|RUPEE)/i.test(line) || value >= 10) {
-        pushValue(value);
+        pushValue(value, /\b(MRP|PRICE|AMOUNT)\b/i.test(line) ? 90 : 50);
+      }
+    }
+
+    // 3) If a label line has no amount, inspect the next line too.
+    if (labelPattern.test(line)) {
+      const nextLine = lines[lines.indexOf(line) + 1] || '';
+      for (const match of nextLine.matchAll(amountPattern)) {
+        const value = parseFloat(match[1].replace(/,/g, ''));
+        if (value >= 10) pushValue(value, 95);
       }
     }
   }
@@ -156,11 +175,14 @@ function extractPriceCandidates(textBlock) {
     for (const raw of allMatches) {
       const value = parseFloat(raw.replace(/,/g, ''));
       // Avoid very small tokens such as weights or counts.
-      if (value >= 10) pushValue(value);
+      if (value >= 10) pushValue(value, 10);
     }
   }
 
-  return candidates.slice(0, 3);
+  return candidates
+    .sort((a, b) => b.score - a.score || a.value - b.value)
+    .slice(0, 3)
+    .map(entry => entry.value);
 }
 
 /**
