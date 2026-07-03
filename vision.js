@@ -123,7 +123,7 @@ function isRetryableFetchError(err) {
  */
 function extractPriceCandidates(textBlock) {
   const candidates = [];
-  const seen = new Set();
+  const seen = new Map();
   const lines = String(textBlock || '')
     .split(/\n+/)
     .map(line => line.trim())
