@@ -49,7 +49,7 @@ const DashboardView = {
               </div>
               <div class="stat-card">
                 <div class="stat-icon">📉</div>
-                <div class="stat-value" style="font-size:1rem;">${changeLabel}</div>
+                <div class="stat-value" style="font-size:clamp(0.75rem,3vw,0.9rem);word-break:break-word;">${changeLabel}</div>
                 <div class="stat-label">vs last month</div>
               </div>
             </div>

@@ -167,11 +167,16 @@ a { color: var(--purple-light); text-decoration: none; }
   flex: 1;
   margin-top: var(--header-height);
   margin-bottom: var(--nav-height);
-  padding: var(--gap-lg);
+  padding: var(--gap-md);
   max-width: 600px;
   margin-left: auto;
   margin-right: auto;
   width: 100%;
+  box-sizing: border-box;
+  overflow-x: hidden;
+}
+@media (min-width: 400px) {
+  .main-content { padding: var(--gap-lg); }
 }
 
 /* ── Bottom Navigation ───────────────────────────────────────────────────── */
@@ -531,24 +536,33 @@ a { color: var(--purple-light); text-decoration: none; }
 .stats-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: var(--gap-md);
+  gap: 10px;
   margin-bottom: var(--gap-lg);
 }
 .stat-card {
   background: var(--glass);
   border: 1px solid var(--glass-border);
   border-radius: var(--r-lg);
-  padding: var(--gap-md);
+  padding: 12px;
+  min-width: 0;        /* prevent grid blowout */
+  overflow: hidden;
 }
-.stat-icon { font-size: 1.4rem; margin-bottom: var(--gap-sm); }
+@media (min-width: 400px) {
+  .stats-grid { gap: var(--gap-md); }
+  .stat-card  { padding: var(--gap-md); }
+}
+.stat-icon { font-size: 1.25rem; margin-bottom: 6px; }
 .stat-value {
   font-family: 'Outfit', sans-serif;
-  font-size: 1.4rem;
+  /* fluid: shrinks on small screens, grows on large */
+  font-size: clamp(0.82rem, 3.8vw, 1.25rem);
   font-weight: 700;
-  line-height: 1;
+  line-height: 1.1;
+  word-break: break-word;
+  white-space: normal;
 }
-.stat-label { font-size: 0.75rem; color: var(--text3); margin-top: 4px; }
-.stat-delta { font-size: 0.75rem; margin-top: 4px; font-weight: 600; }
+.stat-label { font-size: 0.72rem; color: var(--text3); margin-top: 4px; }
+.stat-delta { font-size: 0.72rem; margin-top: 4px; font-weight: 600; }
 .stat-delta.up   { color: var(--danger); }
 .stat-delta.down { color: var(--success); }
 
@@ -691,8 +705,16 @@ a { color: var(--purple-light); text-decoration: none; }
   align-items: center;
   justify-content: center;
 }
-.budget-ring-amount { font-family: 'Outfit', sans-serif; font-size: 1.6rem; font-weight: 800; }
-.budget-ring-label  { font-size: 0.7rem; color: var(--text3); }
+.budget-ring-amount {
+  font-family: 'Outfit', sans-serif;
+  font-size: clamp(1rem, 4.5vw, 1.5rem);
+  font-weight: 800;
+  line-height: 1.1;
+  word-break: break-word;
+  text-align: center;
+  padding: 0 4px;
+}
+.budget-ring-label  { font-size: 0.68rem; color: var(--text3); text-align: center; }
 
 /* ── Shopping Mode ───────────────────────────────────────────────────────── */
 .shopping-header {

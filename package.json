@@ -14,9 +14,15 @@
     "uuid": "^9.0.0"
   },
   "devDependencies": {
-    "nodemon": "^3.0.2"
+    "nodemon": "^3.0.2",
+    "sharp": "^0.35.3"
   },
-  "keywords": ["grocery", "pwa", "shopping", "budget"],
+  "keywords": [
+    "grocery",
+    "pwa",
+    "shopping",
+    "budget"
+  ],
   "author": "SmartCart",
   "license": "MIT"
 }

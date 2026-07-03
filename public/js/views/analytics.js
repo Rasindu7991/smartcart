@@ -49,7 +49,7 @@ const AnalyticsView = {
             </div>
             <div class="stat-card">
               <div class="stat-icon">🏆</div>
-              <div class="stat-value" style="font-size:0.95rem;">${stats.top_category?.category || '—'}</div>
+              <div class="stat-value" style="font-size:clamp(0.8rem,3.5vw,1rem);word-break:break-word;">${stats.top_category?.category || '—'}</div>
               <div class="stat-label">Top Category</div>
               ${stats.top_category ? `<div style="font-size:0.75rem;color:var(--text3);">${Store.fmt(stats.top_category.total)}</div>` : ''}
             </div>

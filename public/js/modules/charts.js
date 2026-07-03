@@ -30,7 +30,7 @@ const Charts = {
     const ctx = canvas.getContext('2d');
     ctx.scale(dpr, dpr);
 
-    const PAD_L = 44, PAD_R = 12, PAD_T = 20, PAD_B = 40;
+    const PAD_L = 52, PAD_R = 8, PAD_T = 20, PAD_B = 36;
     const chartW = W - PAD_L - PAD_R;
     const chartH = H - PAD_T - PAD_B;
     const maxVal = Math.max(...data.map(d => d.value), 1);
@@ -51,8 +51,11 @@ const Charts = {
       ctx.moveTo(PAD_L, y);
       ctx.lineTo(PAD_L + chartW, y);
       ctx.stroke();
-      const val = (maxVal * i / gridLines).toFixed(0);
-      ctx.fillText('$' + val, PAD_L - 4, y + 4);
+      const val = (maxVal * i / gridLines);
+      const label = typeof Store !== 'undefined' ? Store.fmt(val) : '$' + val.toFixed(0);
+      // Truncate long currency labels (e.g. "LKR 2,200.00" → "2,200")
+      const shortLabel = label.replace(/^[A-Z]{2,3}\s*/, '');
+      ctx.fillText(shortLabel, PAD_L - 4, y + 4);
     }
 
     // Bars
@@ -86,7 +89,10 @@ const Charts = {
         ctx.fillStyle = '#fff';
         ctx.textAlign = 'center';
         ctx.font      = '10px Inter, sans-serif';
-        ctx.fillText('$' + d.value.toFixed(0), x + barW / 2, y + 14);
+        const barLabel = typeof Store !== 'undefined'
+          ? Store.fmt(d.value).replace(/^[A-Z]{2,3}\s*/, '')
+          : d.value.toFixed(0);
+        ctx.fillText(barLabel, x + barW / 2, y + 14);
       }
 
       // X-axis label
